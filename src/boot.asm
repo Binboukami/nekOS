@@ -5,8 +5,12 @@ BITS 16
 
 	_BOOT_SECTOR_1_ EQU 0x7C00
 	_BOOT_SECTOR_2_ EQU 0x7E00
-	_STACK_BADDR_ 	EQU 0x7C00
+	_STACK_SEGMNT_	EQU 0x7000
+	_STACK_OFFSET_ 	EQU 0xFFFF
 	_KERNEL_ADDR_	EQU 0x1000
+
+	CODE_SEG EQU CODE_DESCRIPTOR - GDT_START
+	DATA_SEG EQU DATA_DESCRIPTOR - GDT_START
 
 _start:								; should be 0x7C00
 	jmp boot_init
@@ -16,77 +20,90 @@ _start:								; should be 0x7C00
 
 boot_init:
 
-	; Initialize registers and boot stack
-	mov ax, 0x00					; BIOS loads us int 0x7c00
-	mov ds, ax						; Data segment = 0x7c00:0x000
-	mov es, ax						; Extra segment = 0x7c00:0x000
-
 	mov [BOOTDRIVE], dl				; Store drive passed by BIOS
 
+	; Initialize registers and boot stack
+	mov ax, 0x0						; BIOS loads us into CS:IP 0x0000:0x7C00
+	mov ds, ax						; Data segment = 0x0000:0x7c00
+	mov es, ax						; Extra segment = 0x0000:0x7c00
+
+	mov ax, _STACK_SEGMNT_
+	mov bx, _STACK_OFFSET_
 	cli								; Disable interrupts
-	mov ss, ax						; Stack segment = 0x7c00:0x000
-	mov bp, _STACK_BADDR_			; Stack Base Pointer
-	mov sp, bp 						; Stack = 0x7C00:00000
+	mov ss, ax
+	mov bp, bx
+	mov sp, bp
 	sti								; Enable interrupts
 
-	; Stage 1
-	; TODO: Get additional system information and bootstrap stuff
+	; TODO: Gather additional system information
+	;; Setup to load additional boot code
 
-	; Stage 2
-	; TODO: Jump to _BOOT_SECTOR_2_ and set up stuff to load kernel
-	; Read from disc routine
-	mov si, a_hex
-	call print_hex
+	;mov dl, [BOOTDRIVE]			; Comment out, dl hasnt changed
+	;mov es, ax						; ES is already 0x0 here
+	mov bx, _KERNEL_ADDR_			; Load kernel entry into this address
+	call disk_load
 
-	; TODO: Debugging why disk read fails.
-	; TODO: Implement print hex to debug error code from registers
-	;jnz .load_failed				; Check CF. 0 on Sucess
+	; Set up GDT descriptors
+	cli								; Disable interrupts
+	lgdt [GDT_DESCRIPTOR]
+	mov eax, cr0
+	or eax, 1
+	mov cr0, eax
 
-	;mov si, success_msg
-	;call print
+	jmp CODE_SEG:protected_mode
 
 	hlt
 	jmp $
-	;call print
-	;jmp 0:_BOOT_SECTOR_2_			; Jump to 2nd stage
 
-.load_failed:
-	mov si, failed_msg
-	call print
+BITS 32
+protected_mode:
+	mov ax, DATA_SEG
+	mov ds, ax
+	mov ss, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ebp, 0x9000
+	mov esp, ebp
 
-	;	TODO: Setup memory and descriptors
-	;	TODO: Call Kernel
-	; TODO: Set address where to load kernel (_KERNEL_ADDR_)
-	; TODO: Attempt to read Kernel from Disk into Memory
-	; TODO: Check for errors
-	; TODO: Jump to _KERNEL_ADDR_ (Where kernel was loaded)
+	jmp 0x1000
 
-	hlt
+; Data and variables
 
-; Variables
+BITS 16
 BOOTDRIVE:
-	db 0x00
+		db 0x00
 
-a_ascii:
-	db "A", 0
-a_hex:
-	dw 0xABCD, 0
+GDT_DESCRIPTOR:
+		dw GDT_START - GDT_END -1		; Size
+		dd GDT_START					; Base
 
-success_msg:
-	db "Success", 0x0D, 0x0A, 0
-failed_msg:
-	db "Failed", 0x0D, 0x0A, 0
+GDT_START:								; Will setup a flat memory model for paging later
+		NULL_DESCRIPTOR:
+			dd 0
+			dd 0
+		CODE_DESCRIPTOR:
+			dw 0xFFFF					; First 16 bits in the segment limiter
+			dw 0x0000					; First 16 bits in the base address
+			db 0						; Additional 8 bits from base address
+
+			db 10011010b				; Type attrs
+			db 11001111b				; Flag Bits + 4 bits from Limit (20bits)
+
+			db 0						; Remaining 8bits from Base (32bits)
+		DATA_DESCRIPTOR:
+			dw 0xFFFF					; First 16 bits in the segment limiter
+			dw 0x0000					; First 16 bits in the base address
+			db 0						; Additional 8 bits from base address
+
+			db 10010010b
+			db 11001111b				; Flag Bits + 4 bits from Limit (20bits)
+
+			db 0						; Remaining 8bits from Base (32bits)
+GDT_END:
 
 jmp $
 times 510-($-$$) db 0
 
 boot_signt:
 	dw 0xAA55						; Legacy BIOS Signature
-
-boot_load:
-	;mov si, teste
-	;call print
-	jmp $
-teste:
-	db 'X', 0
-	hlt

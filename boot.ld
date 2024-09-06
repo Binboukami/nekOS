@@ -10,10 +10,10 @@ SECTIONS
 	}
 
 	. = 0x7DFE;
-	.boot_signt : { }
+	.boot_signt : AT(0X7DFE) { }
 
-	. = 0x7E00;
-	.boot_load : AT(0x7E00) ALIGN(4)
+	. = 0x1000;
+	.kernel_entry : AT(0x1000)
 	{
 
 	}
