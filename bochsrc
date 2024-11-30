@@ -1,7 +1,7 @@
 megs: 32
-romimage: file=/usr/local/share/bochs/BIOS-bochs-latest
-vgaromimage: file=/usr/local/share/bochs/VGABIOS-lgpl-latest
-floppya: 1_44=bin/boot.bin, status=inserted
+romimage: file=/usr/share/bochs/BIOS-bochs-latest
+vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+floppya: 1_44=bin/nekOS.bin, status=inserted
 boot: floppy
 
 log: bochs_log.txt
