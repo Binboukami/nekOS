@@ -8,5 +8,5 @@ boot: floppy
 
 # TODO: Configure disk image
 
-log: bochs_log.txt
+log: logs/bochs_log.txt
 magic_break: enabled=1
