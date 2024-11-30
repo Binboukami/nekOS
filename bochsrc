@@ -1,8 +1,12 @@
 megs: 32
 romimage: file=/usr/share/bochs/BIOS-bochs-latest
 vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+
+# Bootable disk
 floppya: 1_44=bin/nekOS.bin, status=inserted
 boot: floppy
+
+# TODO: Configure disk image
 
 log: bochs_log.txt
 magic_break: enabled=1
